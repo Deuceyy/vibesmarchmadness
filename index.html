@@ -452,43 +452,30 @@
     <button class="btn btn-primary" onclick="sharePrompt()">📤 Share Your Bracket</button>
   </div>
 
-  <footer-note>Seeded by tournament performance | vibes-tracker.com</footer-note>
+  <footer-note>Randomly seeded | vibes-tracker.com</footer-note>
   <div class="watermark">BARON'S BRACKET 2026 • VIBES TCG</div>
 
 </div>
 
 <script>
-const NAMES = [
-  "BizBunk",
-  "Bellyacher Toolbox",
-  "Red Tower",
-  "BellyBomb",
-  "Yellow Yum Yum",
-  "Bellyacher",
-  "GMP Caffeine",
-  "Bashglobe",
-  "Drop of Attention",
-  "Blue Mill",
-  "Yellow Vibe Ramp",
-  "GMP Colosseum",
-  "Redurple Midrange",
-  "Purple Midrange",
-  "Green Starter",
-  "Yellow Starter",
+const TEAMS = [
+  { id:1,  seed:1,  name:"Drop of Attention" },
+  { id:2,  seed:2,  name:"Yellow Starter" },
+  { id:3,  seed:3,  name:"Bashglobe" },
+  { id:4,  seed:4,  name:"Yellow Vibe Ramp" },
+  { id:5,  seed:5,  name:"Redurple Midrange" },
+  { id:6,  seed:6,  name:"BizBunk" },
+  { id:7,  seed:7,  name:"Bellyacher Toolbox" },
+  { id:8,  seed:8,  name:"GMP Colosseum" },
+  { id:9,  seed:9,  name:"Red Tower" },
+  { id:10, seed:10, name:"Bellyacher" },
+  { id:11, seed:11, name:"BellyBomb" },
+  { id:12, seed:12, name:"Purple Midrange" },
+  { id:13, seed:13, name:"GMP Caffeine" },
+  { id:14, seed:14, name:"Blue Mill" },
+  { id:15, seed:15, name:"Green Starter" },
+  { id:16, seed:16, name:"Yellow Yum Yum" },
 ];
-
-// Fisher-Yates shuffle for random seedings
-function shuffle(arr) {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-}
-
-const shuffled = shuffle(NAMES);
-const TEAMS = shuffled.map((name, i) => ({ id: i + 1, seed: i + 1, name }));
 
 // Sweet 16 matchups (seed vs seed), standard bracket pairing
 // Left bracket: regions A and B (seeds 1,16,8,9 | 4,13,5,12)
