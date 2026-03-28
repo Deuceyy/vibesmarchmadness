@@ -266,7 +266,7 @@
 
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js';
-import { getFirestore, collection, doc, setDoc, onSnapshot, getDoc } from 'https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js';
+import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot, getDoc } from 'https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js';
 
 const firebaseConfig = {
   apiKey: "AIzaSyBK2aqBvSRRLvx_n0kKpZ0BhcfZe0vR1Qk",
@@ -682,6 +682,23 @@ function renderAdminForm() {
 
     return `<div class="admin-section"><h3>${label}</h3>${rows}</div>`;
   }).join('');
+
+  const entryRows = allPicks.length === 0
+    ? `<div style="font-size:12px;color:var(--muted);padding:6px 0;">No entries yet.</div>`
+    : [...allPicks].sort((a,b)=>a.ts-b.ts).map(p=>`
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid rgba(126,200,227,.08);">
+        <span style="font-size:13px;font-weight:600;">${p.name}</span>
+        <button onclick="window._deleteEntry('${p.id.replace(/'/g,"\\'")}','${p.name.replace(/'/g,"\\'")}')"
+          style="background:rgba(255,107,107,.12);border:1px solid rgba(255,107,107,.3);color:#ff6b6b;border-radius:6px;padding:3px 10px;font-size:11px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;">
+          🗑 Delete
+        </button>
+      </div>`).join('');
+
+  form.innerHTML += `<div class="admin-section" style="border-color:rgba(255,107,107,.2);">
+    <h3 style="color:#ff6b6b;">Manage Entries</h3>
+    <p style="font-size:10px;color:var(--muted);margin-bottom:12px;">${allPicks.length} entr${allPicks.length!==1?'ies':'y'} — delete duplicates or fraudulent submissions</p>
+    ${entryRows}
+  </div>`;
 }
 
 window._saveResults = async function() {
@@ -701,6 +718,14 @@ window._saveResults = async function() {
     msg.textContent='✓ Results saved and scores updated live.';
     setTimeout(()=>msg.textContent='',3000);
   } catch(e) { console.error(e); }
+};
+
+window._deleteEntry = async function(id, name) {
+  if (!confirm(`Delete entry for "${name}"? This cannot be undone.`)) return;
+  try {
+    await deleteDoc(doc(db,'picks',id));
+    renderAdminForm();
+  } catch(e) { alert('Error deleting entry.'); console.error(e); }
 };
 
 // Init
