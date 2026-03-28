@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Baron's Bracket — Submit Your Picks</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --sky:#7ec8e3; --deep:#0a2a4a; --accent:#00c6ff; --gold:#ffd700;
+    --win:#00e5a0; --text:#e8f4fd; --muted:#6fa8c8;
+    --card:rgba(14,61,99,0.7); --border:rgba(126,200,227,0.3);
+    --pick:#ffd700;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--deep);font-family:'DM Sans',sans-serif;color:var(--text);min-height:100vh;overflow-x:auto;background-image:radial-gradient(ellipse at 20% 20%,rgba(0,198,255,0.08) 0%,transparent 60%),radial-gradient(ellipse at 80% 80%,rgba(0,198,255,0.06) 0%,transparent 60%);}
+  .wrapper{padding:24px 16px 40px;max-width:1500px;margin:0 auto;}
+
+  /* NAV */
+  .nav{display:flex;justify-content:center;gap:12px;margin-bottom:20px;}
+  .nav-btn{padding:8px 20px;border:1px solid var(--border);background:var(--card);color:var(--muted);font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;border-radius:8px;cursor:pointer;text-decoration:none;transition:all .15s;}
+  .nav-btn:hover,.nav-btn.active{border-color:var(--accent);color:var(--text);background:rgba(0,198,255,.12);}
+  .nav-btn.active{background:rgba(0,198,255,.18);}
+
+  /* HEADER */
+  header{text-align:center;margin-bottom:20px;}
+  .logo-line{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:4px;}
+  .penguin-icon{font-size:32px;}
+  h1{font-family:'Bebas Neue',cursive;font-size:clamp(32px,5vw,64px);letter-spacing:4px;background:linear-gradient(135deg,#fff 0%,var(--accent) 50%,var(--sky) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:1;}
+  .subtitle{font-family:'Bebas Neue',cursive;font-size:clamp(13px,2vw,18px);letter-spacing:6px;color:var(--muted);margin-top:6px;}
+
+  /* TABS */
+  .tabs{display:flex;justify-content:center;gap:0;margin-bottom:24px;border-radius:10px;overflow:hidden;border:1px solid var(--border);width:fit-content;margin-left:auto;margin-right:auto;}
+  .tab{padding:10px 28px;background:var(--card);color:var(--muted);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;border:none;transition:all .15s;}
+  .tab.active{background:rgba(0,198,255,.18);color:var(--text);}
+  .tab:hover:not(.active){background:rgba(0,198,255,.08);color:var(--text);}
+
+  /* SECTION visibility */
+  .section{display:none;}
+  .section.visible{display:block;}
+
+  /* BRACKET */
+  .full-bracket{display:flex;align-items:flex-start;overflow-x:auto;padding-bottom:8px;}
+  .col{display:flex;flex-direction:column;}
+  .col-s16{width:205px;flex-shrink:0;}
+  .col-e8{width:180px;flex-shrink:0;}
+  .col-f4{width:163px;flex-shrink:0;}
+  .col-ch{width:158px;flex-shrink:0;}
+  .col-gap{width:8px;flex-shrink:0;}
+  .col-header{font-family:'Bebas Neue',cursive;text-align:center;padding-bottom:12px;}
+  .round-num{display:block;font-size:17px;letter-spacing:1px;color:var(--text);line-height:1.1;}
+  .round-theme{display:block;font-size:9px;letter-spacing:3px;color:var(--muted);margin-top:2px;}
+  .region-label{font-size:9px;letter-spacing:2px;color:var(--muted);font-family:'Bebas Neue',cursive;padding-left:3px;margin-bottom:3px;}
+  .matchup{display:flex;flex-direction:column;gap:2px;}
+  .vs-div{height:1px;background:linear-gradient(90deg,transparent,var(--border),transparent);margin:1px 4px;}
+  .team{display:flex;align-items:center;gap:6px;padding:6px 9px;background:var(--card);border:1px solid var(--border);border-radius:6px;min-height:36px;cursor:pointer;transition:all .15s;user-select:none;}
+  .team:hover{border-color:rgba(255,215,0,.4);background:rgba(255,215,0,.05);}
+  .team.picked{background:rgba(255,215,0,.12);border-color:var(--gold);animation:pickGlow 2s ease-in-out infinite;}
+  @keyframes pickGlow{0%,100%{box-shadow:0 0 6px rgba(255,215,0,.2);}50%{box-shadow:0 0 14px rgba(255,215,0,.45);}}
+  .team.picked .tname{color:var(--gold);font-weight:700;}
+  .team.tbd-team{cursor:default;opacity:.5;}
+  .team.tbd-team:hover{border-color:var(--border);background:var(--card);}
+  .seed-num{font-family:'Bebas Neue',cursive;font-size:12px;color:var(--muted);min-width:15px;text-align:right;flex-shrink:0;}
+  .tname{font-size:10.5px;font-weight:500;color:var(--text);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .pick-check{font-size:12px;flex-shrink:0;opacity:0;}
+  .team.picked .pick-check{opacity:1;}
+  .trophy-zone{text-align:center;padding:10px 6px;background:linear-gradient(135deg,rgba(255,215,0,.08),rgba(0,198,255,.08));border:1px solid rgba(255,215,0,.25);border-radius:10px;width:100%;margin-top:6px;}
+  .trophy{font-size:24px;display:block;margin-bottom:3px;}
+  .champ-name{font-family:'Bebas Neue',cursive;font-size:14px;letter-spacing:1px;color:var(--gold);min-height:18px;}
+
+  /* SUBMIT FORM */
+  .submit-area{margin-top:28px;max-width:420px;margin-left:auto;margin-right:auto;text-align:center;}
+  .submit-area h3{font-family:'Bebas Neue',cursive;font-size:22px;letter-spacing:3px;color:var(--gold);margin-bottom:6px;}
+  .submit-area p{font-size:12px;color:var(--muted);margin-bottom:16px;}
+  .score-preview{display:flex;justify-content:center;gap:16px;margin-bottom:16px;flex-wrap:wrap;}
+  .score-pill{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:6px 14px;font-size:11px;text-align:center;}
+  .score-pill strong{display:block;font-family:'Bebas Neue',cursive;font-size:18px;color:var(--accent);}
+  .name-row{display:flex;gap:8px;justify-content:center;}
+  .name-input{flex:1;max-width:260px;background:rgba(0,0,0,.3);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text);font-size:14px;font-family:'DM Sans',sans-serif;outline:none;}
+  .name-input:focus{border-color:var(--accent);}
+  .btn{padding:10px 22px;border:1px solid var(--border);background:var(--card);color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;border-radius:8px;cursor:pointer;transition:all .15s;}
+  .btn:hover{border-color:var(--accent);background:rgba(0,198,255,.12);}
+  .btn-gold{background:linear-gradient(135deg,var(--gold),#ffb700);color:#0a2a4a;border:none;font-weight:700;}
+  .btn-gold:hover{opacity:.9;transform:translateY(-1px);}
+  .submit-msg{margin-top:12px;font-size:12px;min-height:18px;}
+  .submit-msg.ok{color:var(--win);}
+  .submit-msg.err{color:#ff6b6b;}
+
+  /* SCROLL hint */
+  .scroll-hint{display:none;text-align:center;font-size:11px;color:var(--muted);margin-bottom:8px;}
+  @media(max-width:960px){.scroll-hint{display:block;}}
+  .bracket-hint{text-align:center;font-size:10px;color:var(--muted);margin-bottom:10px;opacity:.8;}
+
+  /* LEADERBOARD */
+  .lb-wrap{max-width:680px;margin:0 auto;}
+  .lb-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
+  .lb-header h2{font-family:'Bebas Neue',cursive;font-size:28px;letter-spacing:3px;color:var(--gold);}
+  .lb-live{font-size:10px;color:var(--win);letter-spacing:2px;font-weight:700;display:flex;align-items:center;gap:5px;}
+  .lb-live::before{content:'';width:7px;height:7px;background:var(--win);border-radius:50%;display:inline-block;animation:pulse 1.5s ease-in-out infinite;}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.3;}}
+  .lb-scoring{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;}
+  .lb-pt{background:var(--card);border:1px solid var(--border);border-radius:6px;padding:5px 12px;font-size:11px;color:var(--muted);text-align:center;}
+  .lb-pt strong{display:block;font-family:'Bebas Neue',cursive;font-size:16px;color:var(--text);}
+  .lb-table{width:100%;border-collapse:collapse;}
+  .lb-table th{font-family:'Bebas Neue',cursive;font-size:12px;letter-spacing:2px;color:var(--muted);padding:6px 12px;text-align:left;border-bottom:1px solid var(--border);}
+  .lb-table th.right{text-align:right;}
+  .lb-row{border-bottom:1px solid rgba(126,200,227,.1);transition:background .15s;}
+  .lb-row:hover{background:rgba(0,198,255,.04);}
+  .lb-row td{padding:10px 12px;font-size:13px;}
+  .lb-rank{font-family:'Bebas Neue',cursive;font-size:20px;color:var(--muted);width:36px;}
+  .lb-rank.r1{color:var(--gold);}
+  .lb-rank.r2{color:#c0c0c0;}
+  .lb-rank.r3{color:#cd7f32;}
+  .lb-name{font-weight:600;}
+  .lb-score{font-family:'Bebas Neue',cursive;font-size:22px;color:var(--accent);text-align:right;}
+  .lb-breakdown{font-size:10px;color:var(--muted);text-align:right;}
+  .lb-champ-pick{font-size:10px;color:var(--muted);}
+  .lb-champ-pick span{color:var(--gold);}
+  .lb-empty{text-align:center;padding:40px;color:var(--muted);font-size:13px;}
+  .lb-ts{font-size:10px;color:var(--muted);text-align:center;margin-top:16px;}
+
+  /* RESULTS status bar */
+  .results-bar{background:rgba(0,229,160,.06);border:1px solid rgba(0,229,160,.2);border-radius:10px;padding:10px 16px;margin-bottom:20px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;}
+  .results-bar-label{font-family:'Bebas Neue',cursive;font-size:12px;letter-spacing:2px;color:var(--win);margin-right:4px;}
+  .res-pill{font-size:10px;background:var(--card);border:1px solid var(--border);border-radius:4px;padding:2px 8px;color:var(--muted);}
+  .res-pill.done{border-color:rgba(0,229,160,.3);color:var(--win);}
+
+  /* ADMIN */
+  .admin-wrap{max-width:680px;margin:0 auto;}
+  .admin-section{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:16px;}
+  .admin-section h3{font-family:'Bebas Neue',cursive;font-size:18px;letter-spacing:3px;color:var(--gold);margin-bottom:12px;}
+  .res-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap;}
+  .res-label{font-size:11px;color:var(--muted);min-width:90px;}
+  .res-select{background:rgba(0,0,0,.3);border:1px solid var(--border);border-radius:6px;padding:5px 8px;color:var(--text);font-size:11px;font-family:'DM Sans',sans-serif;outline:none;min-width:160px;}
+  .res-select:focus{border-color:var(--accent);}
+  .save-msg{font-size:11px;color:var(--win);min-height:16px;margin-top:4px;}
+
+  /* overlay */
+  .overlay{position:fixed;inset:0;background:rgba(5,15,30,.85);backdrop-filter:blur(4px);z-index:100;display:flex;align-items:center;justify-content:center;}
+  .overlay.hidden{display:none;}
+  .modal{background:#0e3d63;border:1px solid var(--border);border-radius:16px;padding:28px 32px;width:min(92vw,420px);box-shadow:0 24px 60px rgba(0,0,0,.5);position:relative;}
+  .modal h2{font-family:'Bebas Neue',cursive;font-size:24px;letter-spacing:3px;margin-bottom:14px;color:var(--gold);}
+  .pw-row{display:flex;gap:8px;margin-bottom:8px;}
+  .pw-input{flex:1;background:rgba(0,0,0,.3);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text);font-size:14px;font-family:'DM Sans',sans-serif;outline:none;}
+  .pw-input:focus{border-color:var(--accent);}
+  .pw-err{color:#ff6b6b;font-size:11px;min-height:16px;}
+  .modal-close{position:absolute;top:12px;right:16px;background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;}
+
+  footer-note{display:block;text-align:center;font-size:11px;color:var(--muted);margin-top:20px;}
+  .watermark{font-family:'Bebas Neue',cursive;font-size:11px;letter-spacing:2px;color:rgba(126,200,227,.15);text-align:center;margin-top:6px;}
+</style>
+</head>
+<body>
+<div class="wrapper">
+
+  <header>
+    <div class="logo-line">
+      <span class="penguin-icon">🐧</span>
+      <h1>BARON'S BRACKET</h1>
+      <span class="penguin-icon">🐧</span>
+    </div>
+    <div class="subtitle">2026 • Community Predictions</div>
+  </header>
+
+  <div class="nav">
+    <a class="nav-btn" href="index.html">← Official Bracket</a>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="showTab('submit')">📝 Submit Picks</button>
+    <button class="tab" onclick="showTab('leaderboard')">🏆 Leaderboard</button>
+    <button class="tab" onclick="openAdminModal()">🔒 Admin</button>
+  </div>
+
+  <!-- SUBMIT TAB -->
+  <div id="tab-submit" class="section visible">
+    <p class="bracket-hint">Click a deck to pick it as the winner — click again to undo &nbsp;|&nbsp; Work left to right through each round</p>
+    <p class="scroll-hint">← scroll to see full bracket →</p>
+    <div id="predict-root"></div>
+    <div class="submit-area">
+      <h3>Lock In Your Picks</h3>
+      <p>Fill out the full bracket above, enter your name, then submit.</p>
+      <div class="score-preview">
+        <div class="score-pill"><strong id="cnt-s16">0</strong>S16 picks</div>
+        <div class="score-pill"><strong id="cnt-e8">0</strong>E8 picks</div>
+        <div class="score-pill"><strong id="cnt-f4">0</strong>F4 picks</div>
+        <div class="score-pill"><strong id="cnt-ch">0</strong>Champ pick</div>
+      </div>
+      <div class="name-row">
+        <input class="name-input" id="submitter-name" placeholder="Your name / Discord tag" maxlength="32">
+        <button class="btn btn-gold" onclick="submitPicks()">Submit 🐧</button>
+      </div>
+      <div class="submit-msg" id="submit-msg"></div>
+    </div>
+  </div>
+
+  <!-- LEADERBOARD TAB -->
+  <div id="tab-leaderboard" class="section">
+    <div class="lb-wrap">
+      <div class="lb-header">
+        <h2>🏆 Leaderboard</h2>
+        <span class="lb-live">LIVE</span>
+      </div>
+      <div class="lb-scoring">
+        <div class="lb-pt"><strong>1pt</strong>Sweet 16</div>
+        <div class="lb-pt"><strong>2pts</strong>Elite 8</div>
+        <div class="lb-pt"><strong>4pts</strong>Frozen Four</div>
+        <div class="lb-pt"><strong>8pts</strong>Vibe Check</div>
+        <div class="lb-pt"><strong>32</strong>Max pts</div>
+      </div>
+      <div id="results-bar"></div>
+      <table class="lb-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Name</th>
+            <th>Champion Pick</th>
+            <th class="right">Score</th>
+          </tr>
+        </thead>
+        <tbody id="lb-body">
+          <tr><td colspan="4" class="lb-empty">Loading picks…</td></tr>
+        </tbody>
+      </table>
+      <div class="lb-ts" id="lb-ts"></div>
+    </div>
+  </div>
+
+  <footer-note>vibes-tracker.com • Baron's Bracket 2026</footer-note>
+  <div class="watermark">BARON'S BRACKET 2026 • VIBES TCG</div>
+</div>
+
+<!-- Admin Password Modal -->
+<div class="overlay hidden" id="admin-overlay">
+  <div class="modal">
+    <button class="modal-close" onclick="closeAdminModal()">✕</button>
+    <h2>🔒 Admin</h2>
+    <p style="font-size:11px;color:var(--muted);margin-bottom:14px;">Enter password to set official results and score submissions.</p>
+    <div class="pw-row">
+      <input class="pw-input" id="admin-pw" type="password" placeholder="Password…" onkeydown="if(event.key==='Enter')checkAdmin()">
+      <button class="btn" style="background:rgba(255,215,0,.1);border-color:rgba(255,215,0,.3);color:var(--gold);" onclick="checkAdmin()">Enter</button>
+    </div>
+    <div class="pw-err" id="admin-pw-err"></div>
+  </div>
+</div>
+
+<!-- Admin Results Panel (shown after auth) -->
+<div class="overlay hidden" id="admin-panel-overlay">
+  <div class="modal" style="width:min(96vw,560px);max-height:90vh;overflow-y:auto;">
+    <button class="modal-close" onclick="closeAdminPanel()">✕</button>
+    <h2>Set Official Results</h2>
+    <p style="font-size:11px;color:var(--muted);margin-bottom:16px;">Select the winner of each completed game. Leave blank if not yet played. Scores update live for all users.</p>
+    <div id="admin-results-form"></div>
+    <div class="save-msg" id="save-msg"></div>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js';
+import { getFirestore, collection, doc, setDoc, onSnapshot, getDoc } from 'https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js';
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBK2aqBvSRRLvx_n0kKpZ0BhcfZe0vR1Qk",
+  authDomain: "march-madness-29c81.firebaseapp.com",
+  projectId: "march-madness-29c81",
+  storageBucket: "march-madness-29c81.firebasestorage.app",
+  messagingSenderId: "683016208352",
+  appId: "1:683016208352:web:acd01eb29229584da53585",
+  measurementId: "G-4PRN88G3FQ"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+const PASSWORD = 'fishpockets';
+
+// ── TEAMS & BRACKET CONFIG ──
+const TEAMS = [
+  {id:1,  seed:1,  name:"GMP Colosseum",      url:"https://www.vibes-tracker.com/deck/XdTgbJyjphSWWKvI5WPT"},
+  {id:2,  seed:2,  name:"Redurple Midrange",   url:"https://www.vibes-tracker.com/deck/clZ6AkjnGkbadkMMVKWJ"},
+  {id:3,  seed:3,  name:"Drop of Attention",   url:"https://www.vibes-tracker.com/deck/sJ1W2xigvPNXhPJEZxc1"},
+  {id:4,  seed:4,  name:"Blue Mill",           url:"https://www.vibes-tracker.com/deck/Ch23x4m0Dgkgsey8iDao"},
+  {id:5,  seed:5,  name:"Red Tower",           url:"https://www.vibes-tracker.com/deck/qODaIB0M0IOUDTkWIVyO"},
+  {id:6,  seed:6,  name:"GMP Caffeine",        url:"https://www.vibes-tracker.com/deck/fWC30OQKZmW9fCdA5GWE"},
+  {id:7,  seed:7,  name:"Purple Recycler",     url:"https://www.vibes-tracker.com/deck/OgDYCGRCutm3GZ7soK5Q"},
+  {id:8,  seed:8,  name:"BizBunk",             url:"https://www.vibes-tracker.com/deck/nMApG4hDLyPaWnP8mI8y"},
+  {id:9,  seed:9,  name:"Bashglobe",           url:"https://www.vibes-tracker.com/deck/FtQUXPy71J4D9nP09EYT"},
+  {id:10, seed:10, name:"Bellyacher",          url:"https://www.vibes-tracker.com/deck/DiAJAknWaRutkbgZrEsL"},
+  {id:11, seed:11, name:"Bellyacher Toolbox",  url:"https://www.vibes-tracker.com/deck/HpbNHfrFRAU1feL4kXHH"},
+  {id:12, seed:12, name:"BellyBomb",           url:"https://www.vibes-tracker.com/deck/f7CAZZ3GFTZDHSoSCHRt"},
+  {id:13, seed:13, name:"Yellow Vibe Ramp",    url:"https://www.vibes-tracker.com/deck/6Xza27d47wjFa3HaIaY5"},
+  {id:14, seed:14, name:"Green Starter",       url:"https://www.vibes-tracker.com/deck/z8dF2EkmQtwRXSwqHSa7"},
+  {id:15, seed:15, name:"Yellow Starter",      url:"https://www.vibes-tracker.com/deck/cTxHXbsSKzk6WWaHg8wK"},
+  {id:16, seed:16, name:"Yellow Yum Yum",      url:"https://www.vibes-tracker.com/deck/kqqMogrEqK5IR0p4AYL7"},
+];
+
+const S16 = [[1,16],[8,9],[4,13],[5,12],[3,14],[6,11],[2,15],[7,10]];
+const ROUNDS = ['s16','e8','f4','champ'];
+const ROUND_LABELS = {s16:'Sweet 16', e8:'Elite 8', f4:'Frozen Four', champ:'Vibe Check'};
+const WEIGHTS = {s16:1, e8:2, f4:4, champ:8};
+
+const gt = id => TEAMS.find(t => t.id === id);
+const gs = seed => TEAMS.find(t => t.seed === seed);
+
+// User picks state
+let picks = {s16:Array(8).fill(null), e8:Array(4).fill(null), f4:Array(2).fill(null), champ:null};
+// Official results from Firestore
+let official = {s16:Array(8).fill(null), e8:Array(4).fill(null), f4:Array(2).fill(null), champ:null};
+// All submissions
+let allPicks = [];
+
+// ── TAB SWITCHING ──
+window.showTab = function(tab) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('visible'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-'+tab).classList.add('visible');
+  event.target.classList.add('active');
+  if (tab === 'leaderboard') renderLeaderboard();
+};
+
+// ── PREDICT BRACKET ──
+function getMatch(r, idx) {
+  if (r==='s16') { const [a,b]=S16[idx]; return [gs(a),gs(b)]; }
+  if (r==='e8')  { const i=idx*2; return [picks.s16[i]?gt(picks.s16[i]):null, picks.s16[i+1]?gt(picks.s16[i+1]):null]; }
+  if (r==='f4')  { const i=idx*2; return [picks.e8[i]?gt(picks.e8[i]):null,   picks.e8[i+1]?gt(picks.e8[i+1]):null]; }
+  if (r==='champ') return [picks.f4[0]?gt(picks.f4[0]):null, picks.f4[1]?gt(picks.f4[1]):null];
+  return [null,null];
+}
+
+function isPicked(team, r, idx) {
+  if (r==='s16')  return picks.s16[idx]===team.id;
+  if (r==='e8')   return picks.e8[idx]===team.id;
+  if (r==='f4')   return picks.f4[idx]===team.id;
+  if (r==='champ')return picks.champ===team.id;
+  return false;
+}
+
+function pickTeam(r, idx, slot) {
+  const [t1,t2] = getMatch(r,idx);
+  const chosen = slot===0?t1:t2;
+  if (!chosen) return;
+
+  // Toggle off if already picked
+  const alreadyPicked = isPicked(chosen, r, idx);
+  if (r==='s16') {
+    picks.s16[idx] = alreadyPicked ? null : chosen.id;
+    if (alreadyPicked) clearDown('e8', Math.floor(idx/2));
+    else {
+      const ei=Math.floor(idx/2);
+      const other=picks.s16[idx%2===0?idx+1:idx-1];
+      if (picks.e8[ei]&&picks.e8[ei]!==chosen.id&&picks.e8[ei]!==other){picks.e8[ei]=null;clearDown('f4',Math.floor(ei/2));}
+    }
+  } else if (r==='e8') {
+    picks.e8[idx] = alreadyPicked ? null : chosen.id;
+    if (alreadyPicked) clearDown('f4', Math.floor(idx/2));
+    else { const fi=Math.floor(idx/2); if(picks.f4[fi]&&picks.f4[fi]!==chosen.id){picks.f4[fi]=null;picks.champ=null;} }
+  } else if (r==='f4') {
+    picks.f4[idx] = alreadyPicked ? null : chosen.id;
+    if (alreadyPicked) picks.champ = null;
+    else if (picks.champ && picks.champ!==chosen.id) picks.champ = null;
+  } else if (r==='champ') {
+    picks.champ = alreadyPicked ? null : chosen.id;
+  }
+  renderBracket();
+  updateCounters();
+}
+
+function clearDown(r, idx) {
+  if (r==='e8') { picks.e8[idx]=null; clearDown('f4',Math.floor(idx/2)); }
+  if (r==='f4') { picks.f4[idx]=null; picks.champ=null; }
+}
+
+function updateCounters() {
+  document.getElementById('cnt-s16').textContent = picks.s16.filter(Boolean).length;
+  document.getElementById('cnt-e8').textContent  = picks.e8.filter(Boolean).length;
+  document.getElementById('cnt-f4').textContent  = picks.f4.filter(Boolean).length;
+  document.getElementById('cnt-ch').textContent  = picks.champ ? 1 : 0;
+}
+
+function teamRow(team, r, idx, slot) {
+  if (!team) return `<div class="team tbd-team"><span class="seed-num">-</span><span class="tname" style="color:var(--muted)">TBD</span></div>`;
+  const picked = isPicked(team, r, idx);
+  return `<div class="team ${picked?'picked':''}" onclick="window._pickTeam('${r}',${idx},${slot})">
+    <span class="seed-num">${team.seed}</span>
+    <span class="tname">${team.name}</span>
+    <span class="pick-check">✓</span>
+  </div>`;
+}
+
+function matchup(r, idx) {
+  const [t1,t2]=getMatch(r,idx);
+  return `<div class="matchup">${teamRow(t1,r,idx,0)}<div class="vs-div"></div>${teamRow(t2,r,idx,1)}</div>`;
+}
+function hdr(big,sub,gold='') {
+  return `<div class="col-header"><span class="round-num" style="${gold}">${big}</span><span class="round-theme" style="${gold?'color:rgba(255,215,0,.5)':''}">${sub}</span></div>`;
+}
+function rl(t){return `<div class="region-label">${t}</div>`;}
+
+function renderBracket() {
+  const ct = picks.champ ? gt(picks.champ) : null;
+  document.getElementById('predict-root').innerHTML = `<div class="full-bracket">
+  <div class="col col-s16">
+    ${hdr('Sweet 16','Enter the Huddle')}
+    <div style="display:flex;flex-direction:column;gap:14px;">
+      <div>${rl('REGION A')}${matchup('s16',0)}<div style="height:6px"></div>${matchup('s16',1)}</div>
+      <div style="height:14px"></div>
+      <div>${rl('REGION B')}${matchup('s16',2)}<div style="height:6px"></div>${matchup('s16',3)}</div>
+    </div>
+  </div>
+  <div class="col-gap"></div>
+  <div class="col col-e8">
+    ${hdr('Elite 8','Legend of the Lils')}
+    <div style="display:flex;flex-direction:column;gap:14px;padding-top:36px;">
+      ${matchup('e8',0)}<div style="height:48px"></div>${matchup('e8',1)}
+    </div>
+  </div>
+  <div class="col-gap"></div>
+  <div class="col col-f4">
+    ${hdr('Final Four','The Frozen Four')}
+    <div style="padding-top:94px;">${matchup('f4',0)}</div>
+  </div>
+  <div class="col-gap"></div>
+  <div class="col col-ch">
+    ${hdr('Championship','Vibe Check','color:var(--gold);')}
+    <div style="display:flex;flex-direction:column;align-items:center;padding-top:132px;gap:6px;">
+      ${matchup('champ',0)}
+      <div class="trophy-zone">
+        <span class="trophy">🏆</span>
+        <div class="champ-name">${ct?ct.name:'???'}</div>
+        <div style="font-size:9px;color:var(--muted);margin-top:2px;letter-spacing:1px;">YOUR CHAMPION</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-gap"></div>
+  <div class="col col-f4">
+    ${hdr('Final Four','The Frozen Four')}
+    <div style="padding-top:94px;">${matchup('f4',1)}</div>
+  </div>
+  <div class="col-gap"></div>
+  <div class="col col-e8">
+    ${hdr('Elite 8','Legend of the Lils')}
+    <div style="display:flex;flex-direction:column;gap:14px;padding-top:36px;">
+      ${matchup('e8',2)}<div style="height:48px"></div>${matchup('e8',3)}
+    </div>
+  </div>
+  <div class="col-gap"></div>
+  <div class="col col-s16">
+    ${hdr('Sweet 16','Enter the Huddle')}
+    <div style="display:flex;flex-direction:column;gap:14px;">
+      <div>${rl('REGION C')}${matchup('s16',4)}<div style="height:6px"></div>${matchup('s16',5)}</div>
+      <div style="height:14px"></div>
+      <div>${rl('REGION D')}${matchup('s16',6)}<div style="height:6px"></div>${matchup('s16',7)}</div>
+    </div>
+  </div>
+  </div>`;
+}
+
+window._pickTeam = pickTeam;
+
+// ── SUBMIT ──
+window.submitPicks = async function() {
+  const name = document.getElementById('submitter-name').value.trim();
+  const msg = document.getElementById('submit-msg');
+  if (!name) { msg.className='submit-msg err'; msg.textContent='Please enter your name.'; return; }
+  const total = picks.s16.filter(Boolean).length + picks.e8.filter(Boolean).length + picks.f4.filter(Boolean).length + (picks.champ?1:0);
+  if (total < 15) { msg.className='submit-msg err'; msg.textContent='Fill out the full bracket first (15 picks required).'; return; }
+  msg.className='submit-msg'; msg.textContent='Submitting…';
+  try {
+    const docId = name.toLowerCase().replace(/[^a-z0-9]/g,'-').slice(0,40);
+    await setDoc(doc(db,'picks',docId), {
+      name,
+      s16: picks.s16,
+      e8:  picks.e8,
+      f4:  picks.f4,
+      champ: picks.champ,
+      ts: Date.now()
+    });
+    msg.className='submit-msg ok'; msg.textContent=`✓ Picks submitted for ${name}! Good luck 🐧`;
+  } catch(e) {
+    msg.className='submit-msg err'; msg.textContent='Error saving picks. Check your connection.';
+    console.error(e);
+  }
+};
+
+// ── SCORING ──
+function calcScore(submission, off) {
+  let pts=0, breakdown={s16:0,e8:0,f4:0,champ:0};
+  ['s16','e8','f4'].forEach(r => {
+    submission[r].forEach((id,i) => {
+      if (id && off[r] && off[r][i]===id) { pts+=WEIGHTS[r]; breakdown[r]++; }
+    });
+  });
+  if (submission.champ && off.champ && off.champ===submission.champ) { pts+=8; breakdown.champ=1; }
+  return {pts, breakdown};
+}
+
+// ── LEADERBOARD ──
+function renderLeaderboard() {
+  const body = document.getElementById('lb-body');
+  if (!allPicks.length) { body.innerHTML=`<tr><td colspan="4" class="lb-empty">No picks submitted yet. Be the first! 🐧</td></tr>`; return; }
+
+  const scored = allPicks.map(p => {
+    const {pts,breakdown} = calcScore(p, official);
+    return {...p, pts, breakdown};
+  }).sort((a,b)=>b.pts-a.pts||a.ts-b.ts);
+
+  const champTeam = official.champ ? gt(official.champ) : null;
+  const gamesPlayed = ['s16','e8','f4'].reduce((acc,r)=>acc+(official[r]?.filter(Boolean).length||0),0) + (official.champ?1:0);
+
+  // Results bar
+  const bar = document.getElementById('results-bar');
+  if (gamesPlayed > 0) {
+    const pills = [...['s16','e8','f4'].flatMap((r,ri)=>{
+      const total = {s16:8,e8:4,f4:2}[r];
+      const done = official[r]?.filter(Boolean).length||0;
+      return done>0?[`<span class="res-pill done">${ROUND_LABELS[r]}: ${done}/${total}</span>`]:[`<span class="res-pill">${ROUND_LABELS[r]}: 0/${total}</span>`];
+    }), official.champ?`<span class="res-pill done">Vibe Check: 1/1</span>`:`<span class="res-pill">Vibe Check: 0/1</span>`].join('');
+    bar.innerHTML=`<div class="results-bar"><span class="results-bar-label">Results:</span>${pills}</div>`;
+  } else {
+    bar.innerHTML=`<div style="text-align:center;font-size:11px;color:var(--muted);margin-bottom:16px;padding:8px;background:var(--card);border-radius:8px;border:1px solid var(--border);">⏳ Games haven't started yet — scores will update live as results come in</div>`;
+  }
+
+  let rank=1;
+  body.innerHTML = scored.map((p,i) => {
+    if (i>0 && scored[i-1].pts===p.pts) {} else { rank=i+1; }
+    const rc = rank===1?'r1':rank===2?'r2':rank===3?'r3':'';
+    const champPick = p.champ ? gt(p.champ) : null;
+    const correct = p.champ && official.champ && p.champ===official.champ;
+    return `<tr class="lb-row">
+      <td class="lb-rank ${rc}">${rank}</td>
+      <td><div class="lb-name">${p.name}</div></td>
+      <td class="lb-champ-pick">${champPick?`<span ${correct?'style="color:var(--win)"':''}>${champPick.name}${correct?' ✓':''}</span>`:'—'}</td>
+      <td><div class="lb-score">${p.pts}</div><div class="lb-breakdown">${p.breakdown.s16}×S16 · ${p.breakdown.e8}×E8 · ${p.breakdown.f4}×F4 · ${p.breakdown.champ}×Ch</div></td>
+    </tr>`;
+  }).join('');
+  document.getElementById('lb-ts').textContent = `${scored.length} bracket${scored.length!==1?'s':''} submitted`;
+}
+
+// ── FIRESTORE LIVE LISTENERS ──
+onSnapshot(collection(db,'picks'), snap => {
+  allPicks = snap.docs.map(d=>({id:d.id,...d.data()}));
+  renderLeaderboard();
+});
+
+onSnapshot(doc(db,'results','official'), snap => {
+  if (snap.exists()) {
+    const d = snap.data();
+    official = {
+      s16: d.s16||Array(8).fill(null),
+      e8:  d.e8||Array(4).fill(null),
+      f4:  d.f4||Array(2).fill(null),
+      champ: d.champ||null
+    };
+  }
+  renderLeaderboard();
+});
+
+// ── ADMIN ──
+window.openAdminModal = function() {
+  document.getElementById('admin-overlay').classList.remove('hidden');
+  setTimeout(()=>document.getElementById('admin-pw').focus(),50);
+};
+window.closeAdminModal = function() { document.getElementById('admin-overlay').classList.add('hidden'); };
+window.closeAdminPanel = function() { document.getElementById('admin-panel-overlay').classList.add('hidden'); };
+
+window.checkAdmin = function() {
+  const v = document.getElementById('admin-pw').value;
+  if (v===PASSWORD) {
+    closeAdminModal();
+    renderAdminForm();
+    document.getElementById('admin-panel-overlay').classList.remove('hidden');
+  } else {
+    document.getElementById('admin-pw-err').textContent='Wrong password.';
+    document.getElementById('admin-pw').value='';
+  }
+};
+
+function renderAdminForm() {
+  const form = document.getElementById('admin-results-form');
+  const roundConfig = [
+    {r:'s16', label:'Sweet 16', count:8},
+    {r:'e8',  label:'Elite 8',  count:4},
+    {r:'f4',  label:'Frozen Four', count:2},
+    {r:'champ',label:'Vibe Check (Champion)', count:1},
+  ];
+
+  form.innerHTML = roundConfig.map(({r, label, count}) => {
+    if (r==='champ') {
+      const t0=official.f4[0]?gt(official.f4[0]):null;
+      const t1=official.f4[1]?gt(official.f4[1]):null;
+      const opts = [
+        `<option value="">— Not yet played —</option>`,
+        ...(t0?[`<option value="${t0.id}" ${official.champ===t0.id?'selected':''}>${t0.name}</option>`]:[]),
+        ...(t1?[`<option value="${t1.id}" ${official.champ===t1.id?'selected':''}>${t1.name}</option>`]:[]),
+        // fallback: allow picking any team
+        ...TEAMS.map(t=>`<option value="${t.id}" ${official.champ===t.id?'selected':''}>${t.name}</option>`),
+      ];
+      return `<div class="admin-section">
+        <h3>${label}</h3>
+        <div class="res-row">
+          <span class="res-label">Champion</span>
+          <select class="res-select" id="res-champ" onchange="window._saveResults()">
+            <option value="">— Not yet played —</option>
+            ${TEAMS.map(t=>`<option value="${t.id}" ${official.champ===t.id?'selected':''}>${t.name}</option>`).join('')}
+          </select>
+        </div>
+      </div>`;
+    }
+
+    const matchups = r==='s16'?S16:null;
+    const rows = Array.from({length:count},(_,i)=>{
+      let t1=null,t2=null;
+      if (r==='s16') { const [a,b]=S16[i]; t1=gs(a);t2=gs(b); }
+      else if (r==='e8') { t1=official.s16[i*2]?gt(official.s16[i*2]):null; t2=official.s16[i*2+1]?gt(official.s16[i*2+1]):null; }
+      else if (r==='f4') { t1=official.e8[i*2]?gt(official.e8[i*2]):null; t2=official.e8[i*2+1]?gt(official.e8[i*2+1]):null; }
+      const matchLabel = t1&&t2?`${t1.name} vs ${t2.name}`:`Match ${i+1}`;
+      return `<div class="res-row">
+        <span class="res-label">${matchLabel}</span>
+        <select class="res-select" id="res-${r}-${i}" onchange="window._saveResults()">
+          <option value="">— TBD —</option>
+          ${TEAMS.map(t=>`<option value="${t.id}" ${official[r][i]===t.id?'selected':''}>${t.name}</option>`).join('')}
+        </select>
+      </div>`;
+    }).join('');
+
+    return `<div class="admin-section"><h3>${label}</h3>${rows}</div>`;
+  }).join('');
+}
+
+window._saveResults = async function() {
+  const newOfficial = {
+    s16: Array.from({length:8},(_,i)=>{ const v=document.getElementById(`res-s16-${i}`)?.value; return v?parseInt(v):null; }),
+    e8:  Array.from({length:4},(_,i)=>{ const v=document.getElementById(`res-e8-${i}`)?.value; return v?parseInt(v):null; }),
+    f4:  Array.from({length:2},(_,i)=>{ const v=document.getElementById(`res-f4-${i}`)?.value; return v?parseInt(v):null; }),
+    champ: (()=>{ const v=document.getElementById('res-champ')?.value; return v?parseInt(v):null; })(),
+  };
+  try {
+    await setDoc(doc(db,'results','official'), newOfficial);
+    const msg = document.getElementById('save-msg');
+    msg.textContent='✓ Results saved and scores updated live.';
+    setTimeout(()=>msg.textContent='',3000);
+  } catch(e) { console.error(e); }
+};
+
+// Init
+renderBracket();
+updateCounters();
+</script>
+</body>
+</html>
