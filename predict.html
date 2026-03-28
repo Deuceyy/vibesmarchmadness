@@ -86,6 +86,12 @@
   .submit-msg.ok{color:var(--win);}
   .submit-msg.err{color:#ff6b6b;}
 
+  /* LOCKED STATE */
+  .locked-banner{background:rgba(255,107,107,.08);border:1px solid rgba(255,107,107,.3);border-radius:12px;padding:20px 24px;text-align:center;margin-bottom:20px;}
+  .locked-banner h3{font-family:'Bebas Neue',cursive;font-size:24px;letter-spacing:3px;color:#ff6b6b;margin-bottom:6px;}
+  .locked-banner p{font-size:12px;color:var(--muted);}
+  .locked-overlay{pointer-events:none;opacity:.35;user-select:none;}
+
   /* SCROLL hint */
   .scroll-hint{display:none;text-align:center;font-size:11px;color:var(--muted);margin-bottom:8px;}
   @media(max-width:960px){.scroll-hint{display:block;}}
@@ -174,6 +180,10 @@
 
   <!-- SUBMIT TAB -->
   <div id="tab-submit" class="section visible">
+    <div id="locked-banner" class="locked-banner" style="display:none;">
+      <h3>🔒 Bracket Locked</h3>
+      <p>Submissions are closed — the tournament has started. Check the leaderboard to see how your picks are doing!</p>
+    </div>
     <p class="bracket-hint">Click a deck to pick it as the winner — click again to undo &nbsp;|&nbsp; Work left to right through each round</p>
     <p class="scroll-hint">← scroll to see full bracket →</p>
     <div id="predict-root"></div>
@@ -306,6 +316,8 @@ const gs = seed => TEAMS.find(t => t.seed === seed);
 let picks = {s16:Array(8).fill(null), e8:Array(4).fill(null), f4:Array(2).fill(null), champ:null};
 // Official results from Firestore
 let official = {s16:Array(8).fill(null), e8:Array(4).fill(null), f4:Array(2).fill(null), champ:null};
+// Submissions open/closed
+let submissionsOpen = true;
 // All submissions
 let allPicks = [];
 
@@ -336,6 +348,7 @@ function isPicked(team, r, idx) {
 }
 
 function pickTeam(r, idx, slot) {
+  if (!submissionsOpen) return;
   const [t1,t2] = getMatch(r,idx);
   const chosen = slot===0?t1:t2;
   if (!chosen) return;
@@ -459,8 +472,8 @@ window._pickTeam = pickTeam;
 
 // ── SUBMIT ──
 window.submitPicks = async function() {
-  const name = document.getElementById('submitter-name').value.trim();
   const msg = document.getElementById('submit-msg');
+  if (!submissionsOpen) { msg.className='submit-msg err'; msg.textContent='Submissions are closed — the tournament has started.'; return; }
   if (!name) { msg.className='submit-msg err'; msg.textContent='Please enter your name.'; return; }
   const total = picks.s16.filter(Boolean).length + picks.e8.filter(Boolean).length + picks.f4.filter(Boolean).length + (picks.champ?1:0);
   if (total < 15) { msg.className='submit-msg err'; msg.textContent='Fill out the full bracket first (15 picks required).'; return; }
@@ -542,9 +555,25 @@ onSnapshot(collection(db,'picks'), snap => {
   renderLeaderboard();
 });
 
+function updateLockedUI() {
+  const banner = document.getElementById('locked-banner');
+  const bracketEl = document.getElementById('predict-root');
+  const submitArea = document.querySelector('.submit-area');
+  if (!submissionsOpen) {
+    banner.style.display = 'block';
+    if (bracketEl) bracketEl.classList.add('locked-overlay');
+    if (submitArea) submitArea.classList.add('locked-overlay');
+  } else {
+    banner.style.display = 'none';
+    if (bracketEl) bracketEl.classList.remove('locked-overlay');
+    if (submitArea) submitArea.classList.remove('locked-overlay');
+  }
+}
+
 onSnapshot(doc(db,'results','official'), snap => {
   if (snap.exists()) {
     const d = snap.data();
+    submissionsOpen = d.submissionsOpen !== false; // default true if field missing
     official = {
       s16: d.s16||Array(8).fill(null),
       e8:  d.e8||Array(4).fill(null),
@@ -552,6 +581,7 @@ onSnapshot(doc(db,'results','official'), snap => {
       champ: d.champ||null
     };
   }
+  updateLockedUI();
   renderLeaderboard();
 });
 
@@ -584,7 +614,16 @@ function renderAdminForm() {
     {r:'champ',label:'Vibe Check (Champion)', count:1},
   ];
 
-  form.innerHTML = roundConfig.map(({r, label, count}) => {
+  form.innerHTML = `<div class="admin-section" style="background:rgba(255,107,107,.06);border-color:rgba(255,107,107,.2);">
+    <h3 style="color:#ff6b6b;">Submission Control</h3>
+    <div class="res-row" style="align-items:center;gap:12px;">
+      <span class="res-label" style="min-width:unset;">Bracket submissions:</span>
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:600;">
+        <input type="checkbox" id="submissions-open-toggle" ${submissionsOpen?'checked':''} onchange="window._saveResults()" style="width:18px;height:18px;cursor:pointer;accent-color:var(--win);">
+        <span id="submissions-status-label" style="color:${submissionsOpen?'var(--win)':'#ff6b6b'}">${submissionsOpen?'OPEN — accepting picks':'CLOSED — submissions locked'}</span>
+      </label>
+    </div>
+  </div>` + roundConfig.map(({r, label, count}) => {
     if (r==='champ') {
       const t0=official.f4[0]?gt(official.f4[0]):null;
       const t1=official.f4[1]?gt(official.f4[1]):null;
@@ -628,7 +667,11 @@ function renderAdminForm() {
 }
 
 window._saveResults = async function() {
+  const isOpen = document.getElementById('submissions-open-toggle')?.checked ?? true;
+  const label = document.getElementById('submissions-status-label');
+  if (label) { label.textContent = isOpen ? 'OPEN — accepting picks' : 'CLOSED — submissions locked'; label.style.color = isOpen ? 'var(--win)' : '#ff6b6b'; }
   const newOfficial = {
+    submissionsOpen: isOpen,
     s16: Array.from({length:8},(_,i)=>{ const v=document.getElementById(`res-s16-${i}`)?.value; return v?parseInt(v):null; }),
     e8:  Array.from({length:4},(_,i)=>{ const v=document.getElementById(`res-e8-${i}`)?.value; return v?parseInt(v):null; }),
     f4:  Array.from({length:2},(_,i)=>{ const v=document.getElementById(`res-f4-${i}`)?.value; return v?parseInt(v):null; }),
