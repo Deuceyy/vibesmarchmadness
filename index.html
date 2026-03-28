@@ -122,7 +122,7 @@
     <div class="legend-item"><div class="legend-dot d"></div><span style="color:var(--deuce)">Deuce</span></div>
     <div class="legend-item"><div class="legend-dot c"></div><span style="color:var(--chonker)">Chonker</span></div>
   </div>
-  <p class="edit-hint">Click player badge to swap &nbsp;|&nbsp; Hover + WIN to advance &nbsp;|&nbsp; Click deck name to open decklist</p>
+  <p class="edit-hint">Click deck name to open decklist</p>
   <p class="scroll-hint">← scroll to see full bracket →</p>
 
   <div id="edit-panel-root"></div>
@@ -131,6 +131,7 @@
   <div class="controls">
     <a class="btn" href="predict.html" style="text-decoration:none;text-align:center;">📝 Make Your Predictions</a>
     <button class="btn btn-primary" onclick="window.share()">📤 Share</button>
+    <button id="reshuffle-btn" class="btn btn-edit" onclick="window.reshuffleAll()" style="display:none;">🔀 Reshuffle Players</button>
   </div>
 
   <footer-note>vibes-tracker.com &nbsp;|&nbsp; <span onclick="window.openPwModal()" style="cursor:pointer;opacity:0.15;font-size:10px;">⚙</span></footer-note>
@@ -286,7 +287,7 @@ function renderEditPanel(){
       <h3>✏️ Edit Bracket</h3>
       <p class="edit-subtext">Drag to reorder &nbsp;|&nbsp; Edit names &nbsp;|&nbsp; Paste decklist URLs &nbsp;|&nbsp; Saves for everyone on Done</p>
       <div class="edit-grid">${cards}</div>
-      <div class="edit-actions"><button class="btn" onclick="window._cep()">✓ Done Editing</button></div>
+      <div class="edit-actions"><button class="btn" style="color:#ff6b6b;border-color:rgba(255,107,107,.3);" onclick="if(confirm('Reset all bracket results?'))window.resetAll()">🗑 Reset Results</button><button class="btn" onclick="window._cep()">✓ Done Editing</button></div>
     </div>`;
 }
 
@@ -313,10 +314,10 @@ function teamRow(team,r,idx,slot){
   return`<div class="team ${won?'won':''}">
     <span class="seed-num">${team.seed}</span>${nameEl}
     <span class="pbadge ${pc}" onclick="window._tp('${r}',${idx})">${player}</span>
-    ${!won?`<button class="win-btn" onclick="window._adv('${r}',${idx},${slot})">WIN</button>`:''}
+    ${editMode&&!won?`<button class="win-btn" onclick="window._adv('${r}',${idx},${slot})">WIN</button>`:''}
   </div>`;
 }
-window._tp=function(r,i){toggleMatchPlayer(r,i);};
+window._tp=function(r,i){if(editMode)toggleMatchPlayer(r,i);};
 window._adv=function(r,idx,slot){advance(r,idx,slot);};
 
 function matchup(r,idx){const[t1,t2]=getMatch(r,idx);return`<div class="matchup">${teamRow(t1,r,idx,0)}<div class="vs-div"></div>${teamRow(t2,r,idx,1)}</div>`;}
