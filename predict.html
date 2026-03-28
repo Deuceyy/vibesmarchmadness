@@ -489,6 +489,7 @@ window._pickTeam = pickTeam;
 
 // ── SUBMIT ──
 window.submitPicks = async function() {
+  const name = document.getElementById('submitter-name').value.trim();
   const msg = document.getElementById('submit-msg');
   if (!submissionsOpen) { msg.className='submit-msg err'; msg.textContent='Submissions are closed — the tournament has started.'; return; }
   if (!name) { msg.className='submit-msg err'; msg.textContent='Please enter your name.'; return; }
