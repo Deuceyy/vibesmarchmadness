@@ -129,14 +129,11 @@
   <div id="root"></div>
 
   <div class="controls">
-    <button class="btn btn-edit" onclick="openPwModal()">✏️ Edit Bracket</button>
     <a class="btn" href="predict.html" style="text-decoration:none;text-align:center;">📝 Make Your Predictions</a>
-    <button class="btn" onclick="resetAll()">↺ Reset Picks</button>
-    <button class="btn btn-primary" onclick="share()">📤 Share</button>
-    <button class="btn" id="reshuffle-btn" style="display:none;" onclick="reshuffleAll()">🎲 Reshuffle Players</button>
+    <button class="btn btn-primary" onclick="window.share()">📤 Share</button>
   </div>
 
-  <footer-note>Randomly seeded | vibes-tracker.com</footer-note>
+  <footer-note>vibes-tracker.com &nbsp;|&nbsp; <span onclick="window.openPwModal()" style="cursor:pointer;opacity:0.15;font-size:10px;">⚙</span></footer-note>
   <div class="watermark">BARON'S BRACKET 2026 • VIBES TCG</div>
 </div>
 
