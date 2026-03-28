@@ -132,8 +132,8 @@
     <button class="btn btn-edit" onclick="openPwModal()">✏️ Edit Bracket</button>
     <a class="btn" href="predict.html" style="text-decoration:none;text-align:center;">📝 Submit Picks</a>
     <button class="btn" onclick="resetAll()">↺ Reset Picks</button>
-    <button class="btn" onclick="reshuffleAll()">🎲 Reshuffle Players</button>
     <button class="btn btn-primary" onclick="share()">📤 Share</button>
+    <button class="btn" id="reshuffle-btn" style="display:none;" onclick="reshuffleAll()">🎲 Reshuffle Players</button>
   </div>
 
   <footer-note>Randomly seeded | vibes-tracker.com</footer-note>
@@ -154,10 +154,25 @@
   </div>
 </div>
 
-<script>
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js';
+import { getFirestore, doc, setDoc, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js';
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBK2aqBvSRRLvx_n0kKpZ0BhcfZe0vR1Qk",
+  authDomain: "march-madness-29c81.firebaseapp.com",
+  projectId: "march-madness-29c81",
+  storageBucket: "march-madness-29c81.firebasestorage.app",
+  messagingSenderId: "683016208352",
+  appId: "1:683016208352:web:acd01eb29229584da53585"
+};
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
 const PASSWORD = 'fishpockets';
 let editMode = false;
 let dragSrcIdx = null;
+let firestoreLoaded = false;
 
 const TEAMS = [
   {id:1,  seed:1,  name:"GMP Colosseum",      url:"https://www.vibes-tracker.com/deck/XdTgbJyjphSWWKvI5WPT"},
@@ -178,21 +193,42 @@ const TEAMS = [
   {id:16, seed:16, name:"Yellow Yum Yum",      url:"https://www.vibes-tracker.com/deck/kqqMogrEqK5IR0p4AYL7"},
 ];
 
-// Standard bracket matchup order
 const S16 = [[1,16],[8,9],[4,13],[5,12],[3,14],[6,11],[2,15],[7,10]];
-
 let picks = {s16:Array(8).fill(null),e8:Array(4).fill(null),f4:Array(2).fill(null),champ:null};
 let matchPlayers = {};
-
 const ROUNDS=['s16','e8','f4','champ'];
 const ROUND_SIZE={s16:8,e8:4,f4:2,champ:1};
 
 function randomAssign(){return Math.random()<.5?['Deuce','Chonker']:['Chonker','Deuce'];}
 function initAllPlayers(){ROUNDS.forEach(r=>{for(let i=0;i<ROUND_SIZE[r];i++)matchPlayers[r+'-'+i]=randomAssign();});}
 
-function reshuffleAll(){initAllPlayers();render();}
+async function saveBracketState(){
+  try{
+    await setDoc(doc(db,'bracket','state'),{
+      picks, matchPlayers,
+      seeds:TEAMS.map(t=>({id:t.id,seed:t.seed,name:t.name})),
+      ts:Date.now()
+    });
+  }catch(e){console.error('Save failed',e);}
+}
+
+function applyState(data){
+  if(!data)return;
+  if(data.seeds){data.seeds.forEach(s=>{const t=TEAMS.find(t=>t.id===s.id);if(t){t.seed=s.seed;t.name=s.name;}});}
+  if(data.matchPlayers){Object.assign(matchPlayers,data.matchPlayers);}
+  if(data.picks){picks={s16:data.picks.s16||Array(8).fill(null),e8:data.picks.e8||Array(4).fill(null),f4:data.picks.f4||Array(2).fill(null),champ:data.picks.champ||null};}
+}
+
+onSnapshot(doc(db,'bracket','state'),snap=>{
+  if(snap.exists()){applyState(snap.data());if(!editMode)render();}
+  else if(!firestoreLoaded){initAllPlayers();saveBracketState();}
+  firestoreLoaded=true;
+  render();
+});
+
+window.reshuffleAll=function(){initAllPlayers();saveBracketState();render();};
 function getPlayer(r,i,s){const k=r+'-'+i;return matchPlayers[k]?matchPlayers[k][s]:'TBD';}
-function toggleMatchPlayer(r,i){const k=r+'-'+i;if(matchPlayers[k]){matchPlayers[k]=[matchPlayers[k][1],matchPlayers[k][0]];render();}}
+function toggleMatchPlayer(r,i){const k=r+'-'+i;if(matchPlayers[k]){matchPlayers[k]=[matchPlayers[k][1],matchPlayers[k][0]];saveBracketState();render();}}
 
 const gt=id=>TEAMS.find(t=>t.id===id);
 const gs=seed=>TEAMS.find(t=>t.seed===seed);
@@ -204,7 +240,6 @@ function getMatch(r,idx){
   if(r==='champ')return[picks.f4[0]?gt(picks.f4[0]):null,picks.f4[1]?gt(picks.f4[1]):null];
   return[null,null];
 }
-
 function isWon(team,r,idx){
   if(r==='s16')return picks.s16[idx]===team.id;
   if(r==='e8')return picks.e8[idx]===team.id;
@@ -212,148 +247,83 @@ function isWon(team,r,idx){
   if(r==='champ')return picks.champ===team.id;
   return false;
 }
-
 function advance(r,idx,slot){
   const[t1,t2]=getMatch(r,idx);
   const chosen=slot===0?t1:t2;
   if(!chosen)return;
-  if(r==='s16'){
-    picks.s16[idx]=chosen.id;
-    const ei=Math.floor(idx/2);
-    const other=picks.s16[idx%2===0?idx+1:idx-1];
-    if(picks.e8[ei]&&picks.e8[ei]!==chosen.id&&picks.e8[ei]!==other){picks.e8[ei]=null;clearDown('e8',ei);}
-  }else if(r==='e8'){
-    picks.e8[idx]=chosen.id;
-    const fi=Math.floor(idx/2);
-    if(picks.f4[fi]&&picks.f4[fi]!==chosen.id){picks.f4[fi]=null;clearDown('f4',fi);}
-  }else if(r==='f4'){
-    picks.f4[idx]=chosen.id;
-    if(picks.champ&&picks.champ!==chosen.id)picks.champ=null;
-  }else if(r==='champ'){picks.champ=chosen.id;}
-  render();
+  if(r==='s16'){picks.s16[idx]=chosen.id;const ei=Math.floor(idx/2);const other=picks.s16[idx%2===0?idx+1:idx-1];if(picks.e8[ei]&&picks.e8[ei]!==chosen.id&&picks.e8[ei]!==other){picks.e8[ei]=null;clearDown('e8',ei);}}
+  else if(r==='e8'){picks.e8[idx]=chosen.id;const fi=Math.floor(idx/2);if(picks.f4[fi]&&picks.f4[fi]!==chosen.id){picks.f4[fi]=null;clearDown('f4',fi);}}
+  else if(r==='f4'){picks.f4[idx]=chosen.id;if(picks.champ&&picks.champ!==chosen.id)picks.champ=null;}
+  else if(r==='champ'){picks.champ=chosen.id;}
+  saveBracketState();render();
 }
-
 function clearDown(r,idx){
   if(r==='e8'){picks.e8[idx]=null;clearDown('f4',Math.floor(idx/2));}
   if(r==='f4'){picks.f4[idx]=null;picks.champ=null;}
 }
 
-// ── EDIT PANEL ──
-function openPwModal(){
-  document.getElementById('pw-overlay').classList.remove('hidden');
-  document.getElementById('pw-input').value='';
-  document.getElementById('pw-err').textContent='';
-  setTimeout(()=>document.getElementById('pw-input').focus(),50);
-}
-function closePwModal(){document.getElementById('pw-overlay').classList.add('hidden');}
-function checkPw(){
+window.openPwModal=function(){document.getElementById('pw-overlay').classList.remove('hidden');document.getElementById('pw-input').value='';document.getElementById('pw-err').textContent='';setTimeout(()=>document.getElementById('pw-input').focus(),50);};
+window.closePwModal=function(){document.getElementById('pw-overlay').classList.add('hidden');};
+window.checkPw=function(){
   const v=document.getElementById('pw-input').value;
-  if(v===PASSWORD){
-    closePwModal();
-    editMode=true;
-    renderEditPanel();
-    render();
-  }else{
-    document.getElementById('pw-err').textContent='Wrong password. Try again.';
-    document.getElementById('pw-input').value='';
-  }
-}
+  if(v===PASSWORD){window.closePwModal();editMode=true;document.getElementById('reshuffle-btn').style.display='inline-block';renderEditPanel();render();}
+  else{document.getElementById('pw-err').textContent='Wrong password. Try again.';document.getElementById('pw-input').value='';}
+};
 
 function renderEditPanel(){
   if(!editMode){document.getElementById('edit-panel-root').innerHTML='';return;}
-  // Sort teams by seed for display
   const sorted=[...TEAMS].sort((a,b)=>a.seed-b.seed);
-  const cards=sorted.map((t,i)=>`
+  const cards=sorted.map(t=>`
     <div class="edit-card" id="ec-${t.id}" draggable="true"
-      ondragstart="dragStart(${t.id})"
-      ondragover="dragOver(event,${t.id})"
-      ondragleave="dragLeave(${t.id})"
-      ondrop="dragDrop(event,${t.id})">
+      ondragstart="window._ds(${t.id})" ondragover="window._do(event,${t.id})"
+      ondragleave="window._dl(${t.id})" ondrop="window._dd(event,${t.id})">
       <div class="edit-card-top">
         <span class="edit-seed">${t.seed}</span>
-        <input class="edit-name-input" value="${t.name}" oninput="updateName(${t.id},this.value)" placeholder="Deck name">
+        <input class="edit-name-input" value="${t.name}" oninput="window._un(${t.id},this.value)" placeholder="Deck name">
         <span class="drag-hint">⠿ drag</span>
       </div>
-      <input class="edit-url-input" value="${t.url}" oninput="updateUrl(${t.id},this.value)" placeholder="Decklist URL (paste link here)">
-    </div>
-  `).join('');
-
+      <input class="edit-url-input" value="${t.url}" oninput="window._uu(${t.id},this.value)" placeholder="Decklist URL">
+    </div>`).join('');
   document.getElementById('edit-panel-root').innerHTML=`
     <div class="edit-panel">
       <h3>✏️ Edit Bracket</h3>
-      <p class="edit-subtext">Drag cards to reorder seedings &nbsp;|&nbsp; Edit names &nbsp;|&nbsp; Paste decklist URLs</p>
+      <p class="edit-subtext">Drag to reorder &nbsp;|&nbsp; Edit names &nbsp;|&nbsp; Paste decklist URLs &nbsp;|&nbsp; Saves for everyone on Done</p>
       <div class="edit-grid">${cards}</div>
-      <div class="edit-actions">
-        <button class="btn" onclick="closeEditPanel()">✓ Done Editing</button>
-      </div>
+      <div class="edit-actions"><button class="btn" onclick="window._cep()">✓ Done Editing</button></div>
     </div>`;
 }
 
-function closeEditPanel(){
-  editMode=false;
+window._cep=function(){
+  editMode=false;document.getElementById('reshuffle-btn').style.display='none';
   document.getElementById('edit-panel-root').innerHTML='';
+  saveBracketState();
   picks={s16:Array(8).fill(null),e8:Array(4).fill(null),f4:Array(2).fill(null),champ:null};
   render();
-}
+};
+window._un=function(id,val){const t=gt(id);if(t)t.name=val;};
+window._uu=function(id,val){const t=gt(id);if(t)t.url=val.trim();};
+window._ds=function(id){dragSrcIdx=id;setTimeout(()=>{const el=document.getElementById('ec-'+id);if(el)el.classList.add('dragging');},0);};
+window._do=function(e,id){e.preventDefault();if(id===dragSrcIdx)return;document.querySelectorAll('.edit-card').forEach(c=>c.classList.remove('drag-over'));const el=document.getElementById('ec-'+id);if(el)el.classList.add('drag-over');};
+window._dl=function(id){const el=document.getElementById('ec-'+id);if(el)el.classList.remove('drag-over');};
+window._dd=function(e,id){e.preventDefault();if(!dragSrcIdx||id===dragSrcIdx)return;const src=gt(dragSrcIdx),dst=gt(id);if(!src||!dst)return;const tmp=src.seed;src.seed=dst.seed;dst.seed=tmp;dragSrcIdx=null;document.querySelectorAll('.edit-card').forEach(c=>c.classList.remove('dragging','drag-over'));renderEditPanel();};
 
-function updateName(id,val){const t=gt(id);if(t)t.name=val;}
-function updateUrl(id,val){const t=gt(id);if(t)t.url=val.trim();}
-
-// Drag and drop to reorder seeds
-function dragStart(id){
-  dragSrcIdx=id;
-  setTimeout(()=>{const el=document.getElementById('ec-'+id);if(el)el.classList.add('dragging');},0);
-}
-function dragOver(e,id){
-  e.preventDefault();
-  if(id===dragSrcIdx)return;
-  document.querySelectorAll('.edit-card').forEach(c=>c.classList.remove('drag-over'));
-  const el=document.getElementById('ec-'+id);if(el)el.classList.add('drag-over');
-}
-function dragLeave(id){const el=document.getElementById('ec-'+id);if(el)el.classList.remove('drag-over');}
-function dragDrop(e,id){
-  e.preventDefault();
-  if(!dragSrcIdx||id===dragSrcIdx)return;
-  const src=gt(dragSrcIdx),dst=gt(id);
-  if(!src||!dst)return;
-  // Swap seeds
-  const tmp=src.seed; src.seed=dst.seed; dst.seed=tmp;
-  dragSrcIdx=null;
-  document.querySelectorAll('.edit-card').forEach(c=>c.classList.remove('dragging','drag-over'));
-  renderEditPanel();
-}
-
-// ── BRACKET RENDER ──
 function teamRow(team,r,idx,slot){
   const player=getPlayer(r,idx,slot);
   const pc=player==='Deuce'?'d':player==='Chonker'?'c':'tbd';
-  if(!team) return`<div class="team">
-    <span class="seed-num">-</span>
-    <span class="name-link no-link" style="color:var(--muted)">TBD</span>
-    <span class="pbadge ${pc}" onclick="toggleMatchPlayer('${r}',${idx})">${player}</span>
-  </div>`;
+  if(!team)return`<div class="team"><span class="seed-num">-</span><span class="name-link no-link" style="color:var(--muted)">TBD</span><span class="pbadge ${pc}" onclick="window._tp('${r}',${idx})">${player}</span></div>`;
   const won=isWon(team,r,idx);
-  const nameEl=team.url
-    ?`<a class="name-link" href="${team.url}" target="_blank" rel="noopener" title="View decklist">${team.name} ↗</a>`
-    :`<span class="name-link no-link">${team.name}</span>`;
+  const nameEl=team.url?`<a class="name-link" href="${team.url}" target="_blank" rel="noopener">${team.name} ↗</a>`:`<span class="name-link no-link">${team.name}</span>`;
   return`<div class="team ${won?'won':''}">
-    <span class="seed-num">${team.seed}</span>
-    ${nameEl}
-    <span class="pbadge ${pc}" onclick="toggleMatchPlayer('${r}',${idx})">${player}</span>
-    ${!won?`<button class="win-btn" onclick="advance('${r}',${idx},${slot})">WIN</button>`:''}
+    <span class="seed-num">${team.seed}</span>${nameEl}
+    <span class="pbadge ${pc}" onclick="window._tp('${r}',${idx})">${player}</span>
+    ${!won?`<button class="win-btn" onclick="window._adv('${r}',${idx},${slot})">WIN</button>`:''}
   </div>`;
 }
+window._tp=function(r,i){toggleMatchPlayer(r,i);};
+window._adv=function(r,idx,slot){advance(r,idx,slot);};
 
-function matchup(r,idx){
-  const[t1,t2]=getMatch(r,idx);
-  return`<div class="matchup">${teamRow(t1,r,idx,0)}<div class="vs-div"></div>${teamRow(t2,r,idx,1)}</div>`;
-}
-
-function hdr(big,sub,gold){
-  const gc=gold?'color:var(--gold);':'';
-  const sc=gold?'color:rgba(255,215,0,.5);':'';
-  return`<div class="col-header"><span class="round-num" style="${gc}">${big}</span><span class="round-theme" style="${sc}">${sub}</span></div>`;
-}
+function matchup(r,idx){const[t1,t2]=getMatch(r,idx);return`<div class="matchup">${teamRow(t1,r,idx,0)}<div class="vs-div"></div>${teamRow(t2,r,idx,1)}</div>`;}
+function hdr(big,sub,gold){const gc=gold?'color:var(--gold);':'';const sc=gold?'color:rgba(255,215,0,.5);':'';return`<div class="col-header"><span class="round-num" style="${gc}">${big}</span><span class="round-theme" style="${sc}">${sub}</span></div>`;}
 function rl(t){return`<div class="region-label">${t}</div>`;}
 
 function render(){
@@ -361,71 +331,25 @@ function render(){
   const cpSlot=ct?(picks.f4[0]===ct.id?0:1):0;
   const champPlayer=ct?getPlayer('champ',0,cpSlot):null;
   const cc=champPlayer==='Deuce'?'var(--deuce)':champPlayer==='Chonker'?'var(--chonker)':'var(--gold)';
-
   document.getElementById('root').innerHTML=`<div class="full-bracket">
-  <div class="col col-s16">
-    ${hdr('Sweet 16','Enter the Huddle',false)}
-    <div style="display:flex;flex-direction:column;gap:14px;">
-      <div>${rl('REGION A')}${matchup('s16',0)}<div style="height:6px"></div>${matchup('s16',1)}</div>
-      <div style="height:14px"></div>
-      <div>${rl('REGION B')}${matchup('s16',2)}<div style="height:6px"></div>${matchup('s16',3)}</div>
-    </div>
-  </div>
+  <div class="col col-s16">${hdr('Sweet 16','Enter the Huddle',false)}<div style="display:flex;flex-direction:column;gap:14px;"><div>${rl('REGION A')}${matchup('s16',0)}<div style="height:6px"></div>${matchup('s16',1)}</div><div style="height:14px"></div><div>${rl('REGION B')}${matchup('s16',2)}<div style="height:6px"></div>${matchup('s16',3)}</div></div></div>
   <div class="col-gap"></div>
-  <div class="col col-e8">
-    ${hdr('Elite 8','Legend of the Lils',false)}
-    <div style="display:flex;flex-direction:column;gap:14px;padding-top:36px;">
-      ${matchup('e8',0)}<div style="height:48px"></div>${matchup('e8',1)}
-    </div>
-  </div>
+  <div class="col col-e8">${hdr('Elite 8','Legend of the Lils',false)}<div style="display:flex;flex-direction:column;gap:14px;padding-top:36px;">${matchup('e8',0)}<div style="height:48px"></div>${matchup('e8',1)}</div></div>
   <div class="col-gap"></div>
-  <div class="col col-f4">
-    ${hdr('Final Four','The Frozen Four',false)}
-    <div style="padding-top:94px;">${matchup('f4',0)}</div>
-  </div>
+  <div class="col col-f4">${hdr('Final Four','The Frozen Four',false)}<div style="padding-top:94px;">${matchup('f4',0)}</div></div>
   <div class="col-gap"></div>
-  <div class="col col-ch">
-    ${hdr('Championship','Vibe Check',true)}
-    <div style="display:flex;flex-direction:column;align-items:center;padding-top:132px;gap:6px;">
-      ${matchup('champ',0)}
-      <div class="trophy-zone">
-        <span class="trophy">🏆</span>
-        <div class="champ-name" style="color:${cc}">${ct?ct.name:'???'}</div>
-        ${ct?`<div style="font-size:10px;color:${cc};letter-spacing:1px;font-family:'Bebas Neue',cursive;margin-top:1px;">${champPlayer}</div>`:''}
-        <div style="font-size:9px;color:var(--muted);margin-top:2px;letter-spacing:1px;">CHAMPION</div>
-      </div>
-    </div>
-  </div>
+  <div class="col col-ch">${hdr('Championship','Vibe Check',true)}<div style="display:flex;flex-direction:column;align-items:center;padding-top:132px;gap:6px;">${matchup('champ',0)}<div class="trophy-zone"><span class="trophy">🏆</span><div class="champ-name" style="color:${cc}">${ct?ct.name:'???'}</div>${ct?`<div style="font-size:10px;color:${cc};letter-spacing:1px;font-family:'Bebas Neue',cursive;margin-top:1px;">${champPlayer}</div>`:''}<div style="font-size:9px;color:var(--muted);margin-top:2px;letter-spacing:1px;">CHAMPION</div></div></div></div>
   <div class="col-gap"></div>
-  <div class="col col-f4">
-    ${hdr('Final Four','The Frozen Four',false)}
-    <div style="padding-top:94px;">${matchup('f4',1)}</div>
-  </div>
+  <div class="col col-f4">${hdr('Final Four','The Frozen Four',false)}<div style="padding-top:94px;">${matchup('f4',1)}</div></div>
   <div class="col-gap"></div>
-  <div class="col col-e8">
-    ${hdr('Elite 8','Legend of the Lils',false)}
-    <div style="display:flex;flex-direction:column;gap:14px;padding-top:36px;">
-      ${matchup('e8',2)}<div style="height:48px"></div>${matchup('e8',3)}
-    </div>
-  </div>
+  <div class="col col-e8">${hdr('Elite 8','Legend of the Lils',false)}<div style="display:flex;flex-direction:column;gap:14px;padding-top:36px;">${matchup('e8',2)}<div style="height:48px"></div>${matchup('e8',3)}</div></div>
   <div class="col-gap"></div>
-  <div class="col col-s16">
-    ${hdr('Sweet 16','Enter the Huddle',false)}
-    <div style="display:flex;flex-direction:column;gap:14px;">
-      <div>${rl('REGION C')}${matchup('s16',4)}<div style="height:6px"></div>${matchup('s16',5)}</div>
-      <div style="height:14px"></div>
-      <div>${rl('REGION D')}${matchup('s16',6)}<div style="height:6px"></div>${matchup('s16',7)}</div>
-    </div>
-  </div>
+  <div class="col col-s16">${hdr('Sweet 16','Enter the Huddle',false)}<div style="display:flex;flex-direction:column;gap:14px;"><div>${rl('REGION C')}${matchup('s16',4)}<div style="height:6px"></div>${matchup('s16',5)}</div><div style="height:14px"></div><div>${rl('REGION D')}${matchup('s16',6)}<div style="height:6px"></div>${matchup('s16',7)}</div></div></div>
   </div>`;
 }
 
-function resetAll(){
-  picks={s16:Array(8).fill(null),e8:Array(4).fill(null),f4:Array(2).fill(null),champ:null};
-  render();
-}
-
-function share(){
+window.resetAll=function(){picks={s16:Array(8).fill(null),e8:Array(4).fill(null),f4:Array(2).fill(null),champ:null};saveBracketState();render();};
+window.share=function(){
   const ct=picks.champ?gt(picks.champ):null;
   const cpSlot=ct?(picks.f4[0]===ct.id?0:1):0;
   const champPlayer=ct?getPlayer('champ',0,cpSlot):null;
@@ -436,10 +360,7 @@ function share(){
   msg+='\nvibes-tracker.com • @DeuceTCGs';
   if(navigator.share)navigator.share({title:"Baron's Bracket",text:msg});
   else navigator.clipboard.writeText(msg).then(()=>alert('Copied to clipboard!'));
-}
-
-initAllPlayers();
-render();
+};
 </script>
 </body>
 </html>
