@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Baron's Bracket — Submit Your Picks</title>
-<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet"> 
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
   :root {
     --sky:#7ec8e3; --deep:#0a2a4a; --accent:#00c6ff; --gold:#ffd700;
@@ -173,7 +173,7 @@
   </div>
 
   <div class="tabs">
-    <button class="tab active" onclick="showTab('submit')">📝 Submit Picks</button>
+    <button class="tab active" onclick="showTab('submit')">📝 Make Your Picks</button>
     <button class="tab" onclick="showTab('leaderboard')">🏆 Leaderboard</button>
     <button class="tab" onclick="openAdminModal()">🔒 Admin</button>
   </div>
@@ -184,7 +184,7 @@
       <h3>🔒 Bracket Locked</h3>
       <p>Submissions are closed — the tournament has started. Check the leaderboard to see how your picks are doing!</p>
     </div>
-    <p class="bracket-hint">Click a deck to pick it as the winner — click again to undo &nbsp;|&nbsp; Work left to right through each round</p>
+    <p class="bracket-hint">Click a deck to pick it as the winner &nbsp;|&nbsp; Work left to right through each round &nbsp;|&nbsp; Enter your name at the bottom and hit Submit when done</p>
     <p class="scroll-hint">← scroll to see full bracket →</p>
     <div id="predict-root"></div>
     <div class="submit-area">
@@ -316,10 +316,24 @@ const gs = seed => TEAMS.find(t => t.seed === seed);
 let picks = {s16:Array(8).fill(null), e8:Array(4).fill(null), f4:Array(2).fill(null), champ:null};
 // Official results from Firestore
 let official = {s16:Array(8).fill(null), e8:Array(4).fill(null), f4:Array(2).fill(null), champ:null};
+// Player assignments loaded from bracket state
+let matchPlayers = {};
 // Submissions open/closed
 let submissionsOpen = true;
 // All submissions
 let allPicks = [];
+
+// Load bracket state (seeds + player assignments) from Firestore
+onSnapshot(doc(db,'bracket','state'), snap => {
+  if (snap.exists()) {
+    const d = snap.data();
+    if (d.seeds) d.seeds.forEach(s => { const t=TEAMS.find(t=>t.id===s.id); if(t){t.seed=s.seed;t.name=s.name;} });
+    if (d.matchPlayers) Object.assign(matchPlayers, d.matchPlayers);
+  }
+  renderBracket();
+});
+
+function getPlayer(r, i, s) { const k=r+'-'+i; return matchPlayers[k]?matchPlayers[k][s]:'?'; }
 
 // ── TAB SWITCHING ──
 window.showTab = function(tab) {
@@ -391,11 +405,15 @@ function updateCounters() {
 }
 
 function teamRow(team, r, idx, slot) {
+  const player = getPlayer(r, idx, slot);
+  const pc = player==='Deuce'?'deuce':player==='Chonker'?'chonker':'';
+  const pcolor = player==='Deuce'?'var(--deuce,#a8e6ff)':player==='Chonker'?'var(--chonker,#ff6b9d)':'var(--muted)';
   if (!team) return `<div class="team tbd-team"><span class="seed-num">-</span><span class="tname" style="color:var(--muted)">TBD</span></div>`;
   const picked = isPicked(team, r, idx);
   return `<div class="team ${picked?'picked':''}" onclick="window._pickTeam('${r}',${idx},${slot})">
     <span class="seed-num">${team.seed}</span>
     <span class="tname">${team.name}</span>
+    <span style="font-family:'Bebas Neue',cursive;font-size:9px;letter-spacing:.5px;padding:1px 5px;border-radius:3px;flex-shrink:0;color:${pcolor};border:1px solid ${pcolor};opacity:.7;background:transparent;">${player}</span>
     <span class="pick-check">✓</span>
   </div>`;
 }
