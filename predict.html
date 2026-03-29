@@ -266,7 +266,7 @@
 
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js';
-import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot, getDoc } from 'https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js';
+import { getFirestore, collection, doc, setDoc, updateDoc, deleteDoc, onSnapshot, getDoc } from 'https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js';
 
 const firebaseConfig = {
   apiKey: "AIzaSyBK2aqBvSRRLvx_n0kKpZ0BhcfZe0vR1Qk",
@@ -282,6 +282,12 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
 const PASSWORD = 'fishpockets';
+
+const BLOCKED = ['fuck','shit','bitch','cunt','dick','nigger','nigga','faggot','retard','kike','spic','chink','tranny'];
+function containsProfanity(str) {
+  const s = str.toLowerCase().replace(/[^a-z0-9 ]/g, ' ');
+  return BLOCKED.some(w => s.includes(w));
+}
 
 // ── TEAMS & BRACKET CONFIG ──
 const TEAMS = [
@@ -493,6 +499,7 @@ window.submitPicks = async function() {
   const msg = document.getElementById('submit-msg');
   if (!submissionsOpen) { msg.className='submit-msg err'; msg.textContent='Submissions are closed — the tournament has started.'; return; }
   if (!name) { msg.className='submit-msg err'; msg.textContent='Please enter your name.'; return; }
+  if (containsProfanity(name)) { msg.className='submit-msg err'; msg.textContent='Please choose an appropriate name.'; return; }
   const total = picks.s16.filter(Boolean).length + picks.e8.filter(Boolean).length + picks.f4.filter(Boolean).length + (picks.champ?1:0);
   if (total < 15) { msg.className='submit-msg err'; msg.textContent='Fill out the full bracket first (15 picks required).'; return; }
   msg.className='submit-msg'; msg.textContent='Submitting…';
@@ -685,14 +692,18 @@ function renderAdminForm() {
 
   const entryRows = allPicks.length === 0
     ? `<div style="font-size:12px;color:var(--muted);padding:6px 0;">No entries yet.</div>`
-    : [...allPicks].sort((a,b)=>a.ts-b.ts).map(p=>`
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid rgba(126,200,227,.08);">
-        <span style="font-size:13px;font-weight:600;">${p.name}</span>
-        <button onclick="window._deleteEntry('${p.id.replace(/'/g,"\\'")}','${p.name.replace(/'/g,"\\'")}')"
-          style="background:rgba(255,107,107,.12);border:1px solid rgba(255,107,107,.3);color:#ff6b6b;border-radius:6px;padding:3px 10px;font-size:11px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;">
-          🗑 Delete
-        </button>
-      </div>`).join('');
+    : [...allPicks].sort((a,b)=>a.ts-b.ts).map(p=>{
+      const eid = p.id.replace(/'/g,"\\'");
+      const ename = p.name.replace(/'/g,"\\'").replace(/"/g,'&quot;');
+      return `<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid rgba(126,200,227,.08);">
+        <span id="ename-${p.id}" style="font-size:13px;font-weight:600;flex:1;">${p.name}</span>
+        <input id="einput-${p.id}" value="${ename}" maxlength="32" style="display:none;flex:1;background:rgba(0,0,0,.3);border:1px solid var(--border);border-radius:6px;padding:4px 8px;color:var(--text);font-size:12px;font-family:'DM Sans',sans-serif;outline:none;">
+        <button id="eedit-${p.id}" onclick="window._editEntry('${eid}')" title="Rename" style="background:rgba(0,198,255,.1);border:1px solid rgba(0,198,255,.25);color:var(--accent);border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif;">✏️</button>
+        <button id="esave-${p.id}" onclick="window._renameEntry('${eid}')" style="display:none;background:rgba(0,229,160,.12);border:1px solid rgba(0,229,160,.3);color:var(--win);border-radius:6px;padding:3px 8px;font-size:11px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;">✓ Save</button>
+        <button id="ecancel-${p.id}" onclick="window._cancelEdit('${eid}','${ename}')" style="display:none;background:rgba(111,168,200,.1);border:1px solid rgba(111,168,200,.2);color:var(--muted);border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif;">✕</button>
+        <button onclick="window._deleteEntry('${eid}','${ename}')" style="background:rgba(255,107,107,.12);border:1px solid rgba(255,107,107,.3);color:#ff6b6b;border-radius:6px;padding:3px 8px;font-size:11px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;">🗑</button>
+      </div>`;
+    }).join('');
 
   form.innerHTML += `<div class="admin-section" style="border-color:rgba(255,107,107,.2);">
     <h3 style="color:#ff6b6b;">Manage Entries</h3>
@@ -726,6 +737,32 @@ window._deleteEntry = async function(id, name) {
     await deleteDoc(doc(db,'picks',id));
     renderAdminForm();
   } catch(e) { alert('Error deleting entry.'); console.error(e); }
+};
+
+window._editEntry = function(id) {
+  document.getElementById('ename-'+id).style.display = 'none';
+  document.getElementById('einput-'+id).style.display = 'block';
+  document.getElementById('eedit-'+id).style.display = 'none';
+  document.getElementById('esave-'+id).style.display = 'inline-block';
+  document.getElementById('ecancel-'+id).style.display = 'inline-block';
+  document.getElementById('einput-'+id).focus();
+};
+window._cancelEdit = function(id, originalName) {
+  document.getElementById('einput-'+id).value = originalName;
+  document.getElementById('ename-'+id).style.display = 'block';
+  document.getElementById('einput-'+id).style.display = 'none';
+  document.getElementById('eedit-'+id).style.display = 'inline-block';
+  document.getElementById('esave-'+id).style.display = 'none';
+  document.getElementById('ecancel-'+id).style.display = 'none';
+};
+window._renameEntry = async function(id) {
+  const newName = document.getElementById('einput-'+id).value.trim();
+  if (!newName) return;
+  if (containsProfanity(newName)) { alert('Name contains disallowed words.'); return; }
+  try {
+    await updateDoc(doc(db,'picks',id), {name: newName});
+    renderAdminForm();
+  } catch(e) { alert('Error renaming entry.'); console.error(e); }
 };
 
 // Init
