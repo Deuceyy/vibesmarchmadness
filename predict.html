@@ -725,6 +725,7 @@ window._saveResults = async function() {
   };
   try {
     await setDoc(doc(db,'results','official'), newOfficial);
+    await updateDoc(doc(db,'bracket','state'), {picks:{s16:newOfficial.s16,e8:newOfficial.e8,f4:newOfficial.f4,champ:newOfficial.champ}});
     const msg = document.getElementById('save-msg');
     msg.textContent='✓ Results saved and scores updated live.';
     setTimeout(()=>msg.textContent='',3000);
