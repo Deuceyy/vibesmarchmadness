@@ -210,18 +210,31 @@ async function saveBracketState(){
   }catch(e){console.error('Save failed',e);}
 }
 
+async function saveOfficialResults(){
+  try{
+    await setDoc(doc(db,'results','official'),{s16:picks.s16,e8:picks.e8,f4:picks.f4,champ:picks.champ},{merge:true});
+  }catch(e){console.error('Official save failed',e);}
+}
+
 function applyState(data){
   if(!data)return;
   if(data.seeds){data.seeds.forEach(s=>{const t=TEAMS.find(t=>t.id===s.id);if(t){t.seed=s.seed;t.name=s.name;}});}
   if(data.matchPlayers){Object.assign(matchPlayers,data.matchPlayers);}
-  if(data.picks){picks={s16:data.picks.s16||Array(8).fill(null),e8:data.picks.e8||Array(4).fill(null),f4:data.picks.f4||Array(2).fill(null),champ:data.picks.champ||null};}
 }
 
 onSnapshot(doc(db,'bracket','state'),snap=>{
-  if(snap.exists()){applyState(snap.data());if(!editMode)render();}
+  if(snap.exists()){applyState(snap.data());}
   else if(!firestoreLoaded){initAllPlayers();saveBracketState();}
   firestoreLoaded=true;
-  render();
+  if(!editMode)render();
+});
+
+onSnapshot(doc(db,'results','official'),snap=>{
+  if(snap.exists()){
+    const d=snap.data();
+    picks={s16:d.s16||Array(8).fill(null),e8:d.e8||Array(4).fill(null),f4:d.f4||Array(2).fill(null),champ:d.champ||null};
+  }
+  if(!editMode)render();
 });
 
 window.reshuffleAll=function(){initAllPlayers();saveBracketState();render();};
@@ -253,7 +266,7 @@ function advance(r,idx,slot){
   else if(r==='e8'){picks.e8[idx]=chosen.id;const fi=Math.floor(idx/2);if(picks.f4[fi]&&picks.f4[fi]!==chosen.id){picks.f4[fi]=null;clearDown('f4',fi);}}
   else if(r==='f4'){picks.f4[idx]=chosen.id;if(picks.champ&&picks.champ!==chosen.id)picks.champ=null;}
   else if(r==='champ'){picks.champ=chosen.id;}
-  saveBracketState();render();
+  saveBracketState();saveOfficialResults();render();
 }
 function clearDown(r,idx){
   if(r==='e8'){picks.e8[idx]=null;clearDown('f4',Math.floor(idx/2));}
@@ -346,7 +359,7 @@ function render(){
   </div>`;
 }
 
-window.resetAll=function(){picks={s16:Array(8).fill(null),e8:Array(4).fill(null),f4:Array(2).fill(null),champ:null};saveBracketState();render();};
+window.resetAll=function(){picks={s16:Array(8).fill(null),e8:Array(4).fill(null),f4:Array(2).fill(null),champ:null};saveBracketState();saveOfficialResults();render();};
 window.share=function(){
   const ct=picks.champ?gt(picks.champ):null;
   const cpSlot=ct?(picks.f4[0]===ct.id?0:1):0;
